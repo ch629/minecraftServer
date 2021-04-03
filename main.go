@@ -20,10 +20,10 @@ type (
 	}
 
 	HandshakeData struct {
-		ProtocolVersion int32  `json:"protocol_version" pkt:"VarInt"`
+		ProtocolVersion int32  `json:"protocol_version" pkt_type:"VarInt"`
 		ServerAddress   string `json:"server_address"`
 		ServerPort      uint16 `json:"server_port"`
-		NextState       int32  `json:"next_state" pkt:"VarInt"`
+		NextState       int32  `json:"next_state" pkt_type:"VarInt"`
 	}
 
 	State byte

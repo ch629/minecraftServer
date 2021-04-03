@@ -9,13 +9,21 @@ import (
 
 func TestUnmarshal(t *testing.T) {
 	type test struct {
-		Int int32 `pkt:"VarInt"`
+		Int   int32  `pkt_type:"VarInt"`
+		BALen int32  `pkt_type:"VarInt"`
+		BA    []byte `pkt_len:"BALen"`
 	}
 	var te test
-	l := VarInt(1234567890)
 	buf := bytes.NewBuffer(nil)
-	_, err := l.WriteTo(buf)
+	err := WriteFields(buf, VarInt(123456), VarInt(5), ByteArray([]byte{1, 2, 3, 4, 5}))
 	assert.NoError(t, err)
-	assert.NoError(t, Unmarshal(&UncompressedPacket{readCloser: io.NopCloser(buf)}, &te))
-	assert.Equal(t, test{Int: 1234567890}, te)
+	assert.NoError(t, Unmarshal(&UncompressedPacket{
+		readCloser: io.NopCloser(buf),
+		dataLength: VarInt(buf.Len()),
+	}, &te))
+	assert.Equal(t, test{
+		Int:   123456,
+		BALen: 5,
+		BA:    []byte{1, 2, 3, 4, 5},
+	}, te)
 }

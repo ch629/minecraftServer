@@ -347,22 +347,15 @@ func (b *ByteArray) ReadFrom(reader io.Reader) (int64, error) {
 	bs := make([]byte, l)
 	nn, err := io.ReadFull(reader, bs)
 	*b = bs
-	return int64(l) + int64(nn), err
+	return int64(nn), err
 }
 
 func (b ByteArray) WriteTo(writer io.Writer) (int64, error) {
-	l := VarInt(len(b))
-	nn, err := l.WriteTo(writer)
-	if err != nil {
-		return 0, err
-	}
-
 	baLen, err := writer.Write(b)
 	if err != nil {
 		return 0, err
 	}
-	nn += int64(baLen)
-	return nn, nil
+	return int64(baLen), nil
 }
 
 func (u UUID) WriteTo(writer io.Writer) (int64, error) {

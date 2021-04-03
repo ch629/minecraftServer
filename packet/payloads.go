@@ -6,6 +6,15 @@ import (
 	"reflect"
 )
 
+var ErrNotPointer = eris.New("non-pointer passed to unmarshal")
+
+const (
+	// pkt_type is used to differentiate between int32 and VarInt/int64 and VarLong
+	tagPktType = "pkt_type"
+	// pkt_len is used for array sizing, references another field if specified, otherwise uses the remaining data length
+	tagPktLength = "pkt_len"
+)
+
 type decoder struct {
 	reader io.Reader
 	bytes  int64
@@ -26,16 +35,18 @@ func Unmarshal(pkt Packet, i interface{}) error {
 
 func (d *decoder) Decode(i interface{}) error {
 	v := reflect.ValueOf(i)
-	//if v.Kind() != reflect.Ptr {
-	//	return eris.New("non-pointer passed to unmarshal")
-	//}
+	if v.Kind() != reflect.Ptr {
+		return ErrNotPointer
+	}
 	v = v.Elem()
 	typ := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		typField := typ.Field(i)
-		pktTag := typField.Tag.Get("pkt")
+		tags := typField.Tag
+		pktTypeTag := tags.Get(tagPktType)
+		pktLenTag := tags.Get(tagPktLength)
 		bytesRead := int64(0)
 		var err error
 		// TODO: Split these out into separate functions
@@ -85,9 +96,9 @@ func (d *decoder) Decode(i interface{}) error {
 				return err
 			}
 			field.SetUint(uint64(s))
-		// Int
+		// Int/VarInt
 		case reflect.Int32:
-			if pktTag == "VarInt" {
+			if pktTypeTag == "VarInt" {
 				var i VarInt
 				bytesRead, err = i.ReadFrom(d.reader)
 				if err != nil {
@@ -104,9 +115,9 @@ func (d *decoder) Decode(i interface{}) error {
 				}
 				field.SetInt(int64(i))
 			}
-		// Long
+		// Long/VarLong
 		case reflect.Int64:
-			if pktTag == "VarLong" {
+			if pktTypeTag == "VarLong" {
 				return eris.New("VarLong not implemented")
 			} else {
 				var l Long
@@ -145,6 +156,28 @@ func (d *decoder) Decode(i interface{}) error {
 			}
 			field.SetString(string(s))
 		case reflect.Slice:
+			sliceType := field.Type().Elem().Kind()
+			if sliceType == reflect.Uint8 {
+				length := d.bytes
+				if len(pktLenTag) > 0 {
+					lenField := v.FieldByName(pktLenTag)
+					length = lenField.Int()
+				}
+
+				reader, err := ByteArrayReader(VarInt(length), d.reader)
+				if err != nil {
+					return err
+				}
+				var ba ByteArray
+				bytesRead, err = ba.ReadFrom(reader)
+				if err != nil {
+					return err
+				}
+				bs := []byte(ba)
+				field.Set(reflect.ValueOf(bs))
+			} else {
+				return eris.Errorf("unknown slice type %v", sliceType)
+			}
 		default:
 			if field.CanInterface() {
 				if err = d.Decode(field.Interface()); err != nil {
