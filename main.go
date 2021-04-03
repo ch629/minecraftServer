@@ -15,15 +15,15 @@ import (
 )
 
 type (
-	HandshakeData struct {
-		ProtocolVersion packet.VarInt `json:"protocol_version"`
-		ServerAddress   packet.String `json:"server_address"`
-		ServerPort      packet.UShort `json:"server_port"`
-		NextState       State         `json:"next_state"`
+	LoginData struct {
+		Payload string `json:"payload"`
 	}
 
-	LoginData struct {
-		Payload packet.String `json:"payload"`
+	HandshakeData struct {
+		ProtocolVersion int32  `json:"protocol_version" pkt:"VarInt"`
+		ServerAddress   string `json:"server_address"`
+		ServerPort      uint16 `json:"server_port"`
+		NextState       int32  `json:"next_state" pkt:"VarInt"`
 	}
 
 	State byte
@@ -59,41 +59,22 @@ func (d LoginData) String() string {
 }
 
 func ReadHandshakeData(pkt packet.Packet) (*HandshakeData, error) {
-	reader, err := pkt.DataReader()
+	var handshake HandshakeData
+	err := packet.Unmarshal(pkt, &handshake)
 	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	var version packet.VarInt
-	var addr packet.String
-	var port packet.UShort
-	var nextState packet.VarInt
-
-	if err = packet.ReadFields(reader, &version, &addr, &port, &nextState); err != nil {
-		return nil, eris.Wrap(err, "failed to read handshake data")
+		return nil, eris.Wrap(err, "failed to unmarshal HandshakeData")
 	}
 
-	return &HandshakeData{
-		ProtocolVersion: version,
-		ServerAddress:   addr,
-		ServerPort:      port,
-		NextState:       StateFromVarInt(nextState),
-	}, nil
+	return &handshake, nil
 }
 
 func ReadLoginData(pkt packet.Packet) (*LoginData, error) {
-	reader, err := pkt.DataReader()
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	var payload packet.String
-	if err := packet.ReadFields(reader, &payload); err != nil {
-		return nil, eris.Wrap(err, "failed to read login data")
+	var loginData LoginData
+	if err := packet.Unmarshal(pkt, &loginData); err != nil {
+		return nil, eris.Wrap(err, "failed to unmarshal LoginData")
 	}
 
-	return &LoginData{Payload: payload}, nil
+	return &loginData, nil
 }
 
 func main() {
@@ -141,9 +122,9 @@ func main() {
 						// Login success testing -> We get 'Joining world' from this
 						dataBuf := bytes.NewBuffer(nil)
 						uuid, _ := uuid.NewRandom()
-						err = packet.WriteFields(dataBuf, packet.UUID(uuid), loginData.Payload)
+						err = packet.WriteFields(dataBuf, packet.UUID(uuid), packet.String(loginData.Payload))
 						p(err)
-						newPkt := packet.MakePacket(packet.VarInt(0x02), dataBuf)
+						newPkt := packet.MakePacket(packet.VarInt(0x02), packet.VarInt(dataBuf.Len()), dataBuf)
 						_, err = packet.WriteTo(newPkt, conn)
 						p(err)
 					}

@@ -10,23 +10,30 @@ import (
 type (
 	// TODO: These are exactly the same, do we just hold a bool if it's compressed?
 	UncompressedPacket struct {
-		PacketID   VarInt
+		packetID   VarInt
+		dataLength VarInt
 		readCloser io.ReadCloser
 	}
 
 	CompressedPacket struct {
-		PacketID   VarInt
+		packetID   VarInt
+		dataLength VarInt
 		readCloser io.ReadCloser
 	}
 
 	Packet interface {
 		ID() VarInt
+		DataLength() VarInt
 		DataReader() (io.ReadCloser, error)
 	}
 )
 
 func (p UncompressedPacket) ID() VarInt {
-	return p.PacketID
+	return p.packetID
+}
+
+func (p UncompressedPacket) DataLength() VarInt {
+	return p.dataLength
 }
 
 func (p UncompressedPacket) DataReader() (io.ReadCloser, error) {
@@ -34,11 +41,15 @@ func (p UncompressedPacket) DataReader() (io.ReadCloser, error) {
 }
 
 func (p CompressedPacket) ID() VarInt {
-	return p.PacketID
+	return p.packetID
 }
 
 func (p CompressedPacket) DataReader() (io.ReadCloser, error) {
 	return p.readCloser, nil
+}
+
+func (p CompressedPacket) DataLength() VarInt {
+	return p.dataLength
 }
 
 func MakeUncompressedPacket(reader io.Reader) (Packet, error) {
@@ -67,7 +78,8 @@ func MakeUncompressedPacket(reader io.Reader) (Packet, error) {
 	}
 
 	return &UncompressedPacket{
-		PacketID:   pktId,
+		packetID:   pktId,
+		dataLength: dataLen,
 		readCloser: io.NopCloser(bytes.NewReader(byteData)),
 	}, nil
 }
@@ -93,14 +105,16 @@ func MakeCompressedPacket(reader io.Reader) (Packet, error) {
 	}
 
 	return &CompressedPacket{
-		PacketID:   pktId,
+		packetID:   pktId,
+		dataLength: dataLen,
 		readCloser: zlReader,
 	}, nil
 }
 
-func MakePacket(id VarInt, payload io.Reader) Packet {
+func MakePacket(id VarInt, dataLength VarInt, payload io.Reader) Packet {
 	return &UncompressedPacket{
-		PacketID:   id,
+		packetID:   id,
+		dataLength: dataLength,
 		readCloser: io.NopCloser(payload),
 	}
 }

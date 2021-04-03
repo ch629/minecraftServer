@@ -91,6 +91,32 @@ func TestVarInt_SimpleTable(t *testing.T) {
 	}
 }
 
+func TestLong_ReadFrom(t *testing.T) {
+	l := Long(1234567890)
+	buf := bytes.NewBuffer(nil)
+	_, err := l.WriteTo(buf)
+	assert.NoError(t, err)
+	var readLong Long
+	_, err = readLong.ReadFrom(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, l, readLong)
+}
+
+func TestPosition_ReadFrom(t *testing.T) {
+	pos := &Position{
+		X: 200,
+		Y: 100,
+		Z: -200,
+	}
+	buf := bytes.NewBuffer(nil)
+	_, err := pos.WriteTo(buf)
+	assert.NoError(t, err)
+	var readPos Position
+	_, err = readPos.ReadFrom(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, *pos, readPos)
+}
+
 var result int32
 
 func BenchmarkVarInt_ReadFrom(b *testing.B) {
