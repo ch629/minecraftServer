@@ -13,11 +13,29 @@ const (
 	tagPktType = "pkt_type"
 	// pkt_len is used for array sizing, references another field if specified, otherwise uses the remaining data length
 	tagPktLength = "pkt_len"
+	// pkt_opt is used for optional fields, references a boolean field if specified
+	tagPktOptional = "pkt_opt"
 )
 
-type decoder struct {
-	reader io.Reader
-	bytes  int64
+type (
+	decoder struct {
+		reader io.Reader
+		bytes  int64
+	}
+
+	pktTags struct {
+		PktType string
+		PktLen  string
+		PktOpt  string
+	}
+)
+
+func makeTags(tag reflect.StructTag) *pktTags {
+	return &pktTags{
+		PktType: tag.Get(tagPktType),
+		PktLen:  tag.Get(tagPktLength),
+		PktOpt:  tag.Get(tagPktOptional),
+	}
 }
 
 func Unmarshal(pkt Packet, i interface{}) error {
@@ -43,10 +61,13 @@ func (d *decoder) Decode(i interface{}) error {
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		typField := typ.Field(i)
-		tags := typField.Tag
-		pktTypeTag := tags.Get(tagPktType)
-		pktLenTag := tags.Get(tagPktLength)
+		tags := makeTags(typ.Field(i).Tag)
+
+		// Handle optional
+		if len(tags.PktOpt) > 0 && !v.FieldByName(tags.PktOpt).Bool() {
+			continue
+		}
+
 		bytesRead := int64(0)
 		var err error
 		// TODO: Split these out into separate functions
@@ -98,7 +119,7 @@ func (d *decoder) Decode(i interface{}) error {
 			field.SetUint(uint64(s))
 		// Int/VarInt
 		case reflect.Int32:
-			if pktTypeTag == "VarInt" {
+			if tags.PktType == "VarInt" {
 				var i VarInt
 				bytesRead, err = i.ReadFrom(d.reader)
 				if err != nil {
@@ -117,7 +138,7 @@ func (d *decoder) Decode(i interface{}) error {
 			}
 		// Long/VarLong
 		case reflect.Int64:
-			if pktTypeTag == "VarLong" {
+			if tags.PktType == "VarLong" {
 				return eris.New("VarLong not implemented")
 			} else {
 				var l Long
@@ -159,8 +180,8 @@ func (d *decoder) Decode(i interface{}) error {
 			sliceType := field.Type().Elem().Kind()
 			if sliceType == reflect.Uint8 {
 				length := d.bytes
-				if len(pktLenTag) > 0 {
-					lenField := v.FieldByName(pktLenTag)
+				if len(tags.PktLen) > 0 {
+					lenField := v.FieldByName(tags.PktLen)
 					length = lenField.Int()
 				}
 

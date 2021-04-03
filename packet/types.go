@@ -83,10 +83,8 @@ func (b *Boolean) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (b Boolean) WriteTo(writer io.Writer) (int64, error) {
-	ba := make([]byte, 1)
+	ba := []byte{0x00}
 	if b {
-		ba[0] = 0x00
-	} else {
 		ba[0] = 0x01
 	}
 	nn, err := writer.Write(ba)
