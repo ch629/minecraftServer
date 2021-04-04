@@ -285,6 +285,46 @@ func (i VarInt) WriteTo(writer io.Writer) (int64, error) {
 	return io.CopyN(writer, buf, count)
 }
 
+func (l *VarLong) ReadFrom(reader io.Reader) (byteCount int64, err error) {
+	result := int32(0)
+	for read := byte(0x80); read&0x80 != 0; byteCount++ {
+		// TODO: Validate we cut out at the right time for byte count
+		if byteCount > MaxVarLongLen {
+			err = eris.Errorf("VarLong too long, received '%v' chars", byteCount)
+			return
+		}
+
+		read, err = readByte(reader)
+		if err != nil {
+			return
+		}
+		value := int32(read & 0x7F)
+		result |= value << int32(7*byteCount)
+	}
+	*l = VarLong(result)
+	return
+}
+
+// TODO: Max length
+func (l VarLong) WriteTo(writer io.Writer) (int64, error) {
+	buf := bytes.NewBuffer(nil)
+	num := int32(l)
+	count := int64(0)
+	for {
+		b := num & 0x7F
+		num = int32(uint32(num) >> 7)
+		if num != 0 {
+			b |= 0x80
+		}
+		buf.WriteByte(byte(b))
+		count++
+		if num == 0 {
+			break
+		}
+	}
+	return io.CopyN(writer, buf, count)
+}
+
 func (s *UShort) ReadFrom(reader io.Reader) (byteCount int64, err error) {
 	b := make([]byte, 2)
 	byteCountInt, err := io.ReadFull(reader, b)

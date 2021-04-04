@@ -30,8 +30,8 @@ type (
 	}
 )
 
-func makeTags(tag reflect.StructTag) *pktTags {
-	return &pktTags{
+func makeTags(tag reflect.StructTag) pktTags {
+	return pktTags{
 		PktType: tag.Get(tagPktType),
 		PktLen:  tag.Get(tagPktLength),
 		PktOpt:  tag.Get(tagPktOptional),
@@ -139,7 +139,13 @@ func (d *decoder) Decode(i interface{}) error {
 		// Long/VarLong
 		case reflect.Int64:
 			if tags.PktType == "VarLong" {
-				return eris.New("VarLong not implemented")
+				var l VarLong
+				bytesRead, err = l.ReadFrom(d.reader)
+				if err != nil {
+					// TODO: Wrap
+					return err
+				}
+				field.SetInt(int64(l))
 			} else {
 				var l Long
 				bytesRead, err = l.ReadFrom(d.reader)
@@ -176,28 +182,11 @@ func (d *decoder) Decode(i interface{}) error {
 				return err
 			}
 			field.SetString(string(s))
+		// Arrays
 		case reflect.Slice:
-			sliceType := field.Type().Elem().Kind()
-			if sliceType == reflect.Uint8 {
-				length := d.bytes
-				if len(tags.PktLen) > 0 {
-					lenField := v.FieldByName(tags.PktLen)
-					length = lenField.Int()
-				}
-
-				reader, err := ByteArrayReader(VarInt(length), d.reader)
-				if err != nil {
-					return err
-				}
-				var ba ByteArray
-				bytesRead, err = ba.ReadFrom(reader)
-				if err != nil {
-					return err
-				}
-				bs := []byte(ba)
-				field.Set(reflect.ValueOf(bs))
-			} else {
-				return eris.Errorf("unknown slice type %v", sliceType)
+			bytesRead, err = d.handleSlice(v, field, tags)
+			if err != nil {
+				return err
 			}
 		default:
 			if field.CanInterface() {
@@ -209,4 +198,31 @@ func (d *decoder) Decode(i interface{}) error {
 		d.bytes -= bytesRead
 	}
 	return nil
+}
+
+func (d *decoder) handleSlice(v reflect.Value, field reflect.Value, tags pktTags) (bytesRead int64, err error) {
+	sliceType := field.Type().Elem().Kind()
+	if sliceType == reflect.Uint8 {
+		length := d.bytes
+		if len(tags.PktLen) > 0 {
+			lenField := v.FieldByName(tags.PktLen)
+			length = lenField.Int()
+		}
+
+		var reader io.Reader
+		reader, err = ByteArrayReader(VarInt(length), d.reader)
+		if err != nil {
+			return
+		}
+		var ba ByteArray
+		bytesRead, err = ba.ReadFrom(reader)
+		if err != nil {
+			return
+		}
+		bs := []byte(ba)
+		field.Set(reflect.ValueOf(bs))
+		return
+	}
+
+	return 0, eris.Errorf("unknown slice type %v", sliceType)
 }
