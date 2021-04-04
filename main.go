@@ -92,13 +92,13 @@ func main() {
 			p(err)
 			go func(conn *net.TCPConn) {
 				defer conn.Close()
+				fmt.Println("OPENING CONNECTION")
 				defer func() {
 					fmt.Println("CLOSING CONNECTION")
 				}()
-				tee := io.TeeReader(conn, os.Stdout)
 				state := int32(0)
 				for {
-					pkt, err := packet.MakeUncompressedPacket(tee)
+					pkt, err := packet.MakeUncompressedPacket(conn)
 					if IsConnectionClosedErr(err) {
 						break
 					}
@@ -120,11 +120,14 @@ func main() {
 						fmt.Println(loginData)
 
 						// Login success testing -> We get 'Joining world' from this
-						dataBuf := bytes.NewBuffer(nil)
-						uuid, _ := uuid.NewRandom()
-						err = packet.WriteFields(dataBuf, packet.UUID(uuid), packet.String(loginData.Payload))
+						uuid := uuid.MustParse("e52d49e2f2244a7380cfcacf6aecbcae")
+						loginSuccess := &packet.LoginSuccess{
+							UUID:     uuid,
+							Username: loginData.Payload,
+						}
+						bs, err := packet.Marshal(loginSuccess)
 						p(err)
-						newPkt := packet.MakePacket(packet.VarInt(0x02), packet.VarInt(dataBuf.Len()), dataBuf)
+						newPkt := packet.MakePacket(packet.VarInt(0x02), bytes.NewReader(bs))
 						_, err = packet.WriteTo(newPkt, conn)
 						p(err)
 					}

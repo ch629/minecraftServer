@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"github.com/google/uuid"
 	"github.com/rotisserie/eris"
 	"io"
 	"reflect"
@@ -189,6 +190,21 @@ func (d *decoder) DecodeValue(v reflect.Value) error {
 			bytesRead, err = d.handleSlice(v, field, tags)
 			if err != nil {
 				return err
+			}
+		case reflect.Array:
+			l := field.Len()
+			sliceType := field.Type().Elem().Kind()
+
+			// UUID
+			if l == 16 && sliceType == reflect.Uint8 {
+				var uu UUID
+				_, err = uu.ReadFrom(d.reader)
+				if err != nil {
+					return err
+				}
+				field.Set(reflect.ValueOf(uuid.UUID(uu)))
+			} else {
+				// Unknown
 			}
 		default:
 			if field.CanInterface() {

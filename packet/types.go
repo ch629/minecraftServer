@@ -348,7 +348,17 @@ func (s *String) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (s String) WriteTo(writer io.Writer) (int64, error) {
-	return ByteArray(s).WriteTo(writer)
+	nn, err := VarInt(len(s)).WriteTo(writer)
+	if err != nil {
+		return 0, err
+	}
+
+	bytesLen, err := ByteArray(s).WriteTo(writer)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn + bytesLen, nil
 }
 
 // ByteArrayReader creates a io.Reader with a VarInt length prefixing the data

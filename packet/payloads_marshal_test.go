@@ -2,6 +2,7 @@ package packet
 
 import (
 	"bytes"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
@@ -15,6 +16,7 @@ func TestMarshal(t *testing.T) {
 		OptValue bool
 		OptField int32 `pkt_opt:"OptValue"`
 		Pos      Position
+		UUID     uuid.UUID
 	}
 
 	test := testStruct{
@@ -27,6 +29,7 @@ func TestMarshal(t *testing.T) {
 			Y: 20,
 			Z: 30,
 		},
+		UUID: uuid.MustParse("e52d49e2f2244a7380cfcacf6aecbcae"),
 	}
 
 	bs, err := Marshal(&test)

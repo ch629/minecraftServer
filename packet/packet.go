@@ -111,30 +111,32 @@ func MakeCompressedPacket(reader io.Reader) (Packet, error) {
 	}, nil
 }
 
-func MakePacket(id VarInt, dataLength VarInt, payload io.Reader) Packet {
+func MakePacket(id VarInt, payload io.Reader) Packet {
 	return &UncompressedPacket{
 		packetID:   id,
-		dataLength: dataLength,
 		readCloser: io.NopCloser(payload),
 	}
 }
 
+// WriteTo writes a packet to a writer, auto determining the length
 func WriteTo(pkt Packet, writer io.Writer) (count int64, err error) {
-	buf := bytes.NewBuffer(nil)
-	pkt.ID().WriteTo(buf)
-	reader, err := pkt.DataReader()
+	b := bytes.NewBuffer(nil)
+	_, err = pkt.ID().WriteTo(b)
 	if err != nil {
 		return
 	}
-	count, err = io.Copy(buf, reader)
+	r, err := pkt.DataReader()
 	if err != nil {
 		return
 	}
-	VarInt(buf.Len()).WriteTo(writer)
-	nn, err := io.Copy(writer, buf)
+	_, err = io.Copy(b, r)
 	if err != nil {
 		return
 	}
-	count += nn
+	_, err = VarInt(b.Len()).WriteTo(writer)
+	if err != nil {
+		return
+	}
+	_, err = io.Copy(writer, b)
 	return
 }

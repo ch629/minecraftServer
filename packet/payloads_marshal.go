@@ -2,6 +2,7 @@ package packet
 
 import (
 	"bytes"
+	"github.com/google/uuid"
 	"reflect"
 )
 
@@ -11,7 +12,6 @@ type (
 	}
 )
 
-// TODO: []byte or writer?
 func Marshal(i interface{}) ([]byte, error) {
 	encoder := &encoder{
 		buf: bytes.NewBuffer(nil),
@@ -85,6 +85,15 @@ func (e *encoder) EncodeValue(v reflect.Value) error {
 					}
 				}
 				continue
+			}
+		case reflect.Array:
+			l := field.Len()
+			sliceType := field.Type().Elem().Kind()
+
+			// UUID
+			if l == 16 && sliceType == reflect.Uint8 {
+				u := field.Interface().(uuid.UUID)
+				encoder = UUID(u)
 			}
 		default:
 			if field.CanInterface() {
