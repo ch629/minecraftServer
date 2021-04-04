@@ -3,6 +3,7 @@ package packet
 import (
 	"bytes"
 	"github.com/google/uuid"
+	"io"
 	"reflect"
 )
 
@@ -19,12 +20,27 @@ func Marshal(i interface{}) ([]byte, error) {
 	return encoder.Encode(i)
 }
 
+func MarshalReader(i interface{}) (io.Reader, int, error) {
+	encoder := &encoder{
+		buf: bytes.NewBuffer(nil),
+	}
+	return encoder.EncodeReader(i)
+}
+
 func (e *encoder) Encode(i interface{}) ([]byte, error) {
 	if err := e.EncodeValue(reflect.ValueOf(i)); err != nil {
 		return nil, err
 	}
 
 	return e.buf.Bytes(), nil
+}
+
+func (e *encoder) EncodeReader(i interface{}) (io.Reader, int, error) {
+	if err := e.EncodeValue(reflect.ValueOf(i)); err != nil {
+		return nil, 0, err
+	}
+
+	return e.buf, e.buf.Len(), nil
 }
 
 func (e *encoder) EncodeValue(v reflect.Value) error {

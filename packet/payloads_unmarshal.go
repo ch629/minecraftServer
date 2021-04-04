@@ -7,8 +7,6 @@ import (
 	"reflect"
 )
 
-var ErrNotPointer = eris.New("non-pointer passed to unmarshal")
-
 const (
 	// pkt_type is used to differentiate between int32 and VarInt/int64 and VarLong
 	tagPktType = "pkt_type"
@@ -204,7 +202,7 @@ func (d *decoder) DecodeValue(v reflect.Value) error {
 				}
 				field.Set(reflect.ValueOf(uuid.UUID(uu)))
 			} else {
-				// Unknown
+				return eris.Errorf("unknown array type %v", sliceType)
 			}
 		default:
 			if field.CanInterface() {

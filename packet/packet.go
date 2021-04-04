@@ -118,6 +118,18 @@ func MakePacket(id VarInt, payload io.Reader) Packet {
 	}
 }
 
+func MakePacketWithData(id int32, data interface{}) (Packet, error) {
+	reader, _, err := MarshalReader(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UncompressedPacket{
+		packetID:   VarInt(id),
+		readCloser: io.NopCloser(reader),
+	}, nil
+}
+
 // WriteTo writes a packet to a writer, auto determining the length
 func WriteTo(pkt Packet, writer io.Writer) (count int64, err error) {
 	b := bytes.NewBuffer(nil)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -120,14 +119,12 @@ func main() {
 						fmt.Println(loginData)
 
 						// Login success testing -> We get 'Joining world' from this
-						uuid := uuid.MustParse("e52d49e2f2244a7380cfcacf6aecbcae")
 						loginSuccess := &packet.LoginSuccess{
-							UUID:     uuid,
+							UUID:     uuid.MustParse("e52d49e2f2244a7380cfcacf6aecbcae"),
 							Username: loginData.Payload,
 						}
-						bs, err := packet.Marshal(loginSuccess)
+						newPkt, err := packet.MakePacketWithData(0x02, loginSuccess)
 						p(err)
-						newPkt := packet.MakePacket(packet.VarInt(0x02), bytes.NewReader(bs))
 						_, err = packet.WriteTo(newPkt, conn)
 						p(err)
 					}
