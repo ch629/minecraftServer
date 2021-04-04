@@ -14,6 +14,7 @@ func TestMarshal(t *testing.T) {
 		BA       []byte `pkt_len:"BALen"`
 		OptValue bool
 		OptField int32 `pkt_opt:"OptValue"`
+		Pos      Position
 	}
 
 	test := testStruct{
@@ -21,6 +22,11 @@ func TestMarshal(t *testing.T) {
 		BALen:    5,
 		BA:       []byte{1, 2, 3, 4, 5},
 		OptValue: false,
+		Pos: Position{
+			X: 10,
+			Y: 20,
+			Z: 30,
+		},
 	}
 
 	bs, err := Marshal(&test)

@@ -109,7 +109,7 @@ func main() {
 							break
 						}
 						p(err)
-						state = int32(h.NextState)
+						state = h.NextState
 						fmt.Println(h)
 					} else if state == 2 {
 						loginData, err := ReadLoginData(pkt)

@@ -52,11 +52,13 @@ func Unmarshal(pkt Packet, i interface{}) error {
 }
 
 func (d *decoder) Decode(i interface{}) error {
-	v := reflect.ValueOf(i)
-	if v.Kind() != reflect.Ptr {
-		return ErrNotPointer
+	return d.DecodeValue(reflect.ValueOf(i))
+}
+
+func (d *decoder) DecodeValue(v reflect.Value) error {
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
 	}
-	v = v.Elem()
 	typ := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -190,7 +192,7 @@ func (d *decoder) Decode(i interface{}) error {
 			}
 		default:
 			if field.CanInterface() {
-				if err = d.Decode(field.Interface()); err != nil {
+				if err = d.DecodeValue(field); err != nil {
 					return err
 				}
 			}

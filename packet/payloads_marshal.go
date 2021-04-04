@@ -20,7 +20,14 @@ func Marshal(i interface{}) ([]byte, error) {
 }
 
 func (e *encoder) Encode(i interface{}) ([]byte, error) {
-	v := reflect.ValueOf(i)
+	if err := e.EncodeValue(reflect.ValueOf(i)); err != nil {
+		return nil, err
+	}
+
+	return e.buf.Bytes(), nil
+}
+
+func (e *encoder) EncodeValue(v reflect.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
@@ -69,16 +76,29 @@ func (e *encoder) Encode(i interface{}) ([]byte, error) {
 			sliceType := field.Type().Elem().Kind()
 			if sliceType == reflect.Uint8 {
 				encoder = ByteArray(field.Bytes())
+			} else {
+				l := field.Len()
+
+				for i := 0; i < l; i++ {
+					if err := e.EncodeValue(field.Index(i)); err != nil {
+						return err
+					}
+				}
+				continue
 			}
 		default:
-			// TODO:
+			if field.CanInterface() {
+				if _, err := e.Encode(field.Interface()); err != nil {
+					return err
+				}
+			}
 		}
 		if encoder != nil {
 			_, err := encoder.WriteTo(e.buf)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return e.buf.Bytes(), nil
+	return nil
 }
