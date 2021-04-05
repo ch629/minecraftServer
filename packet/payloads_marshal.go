@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/google/uuid"
 	"io"
+	"minecraftServer/nbt"
 	"reflect"
 )
 
@@ -112,6 +113,16 @@ func (e *encoder) EncodeValue(v reflect.Value) error {
 				encoder = UUID(u)
 			}
 		default:
+			if tags.PktType == "nbt" {
+				bs, err := nbt.MarshalValueToNBT(field)
+				if err != nil {
+					return err
+				}
+				if _, err := e.buf.Write(bs); err != nil {
+					return err
+				}
+				continue
+			}
 			if field.CanInterface() {
 				if _, err := e.Encode(field.Interface()); err != nil {
 					return err

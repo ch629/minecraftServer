@@ -208,6 +208,7 @@ func (f *Double) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (f Double) WriteTo(writer io.Writer) (int64, error) {
+	// TODO: Should be Long?
 	return Int(math.Float64bits(float64(f))).WriteTo(writer)
 }
 
