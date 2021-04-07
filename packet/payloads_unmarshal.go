@@ -54,6 +54,7 @@ func (d *decoder) Decode(i interface{}) error {
 	return d.DecodeValue(reflect.ValueOf(i))
 }
 
+// TODO: Internal structs
 func (d *decoder) DecodeValue(v reflect.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -216,6 +217,7 @@ func (d *decoder) DecodeValue(v reflect.Value) error {
 	return nil
 }
 
+// TODO: Handle slice of structs
 func (d *decoder) handleSlice(v reflect.Value, field reflect.Value, tags pktTags) (bytesRead int64, err error) {
 	sliceType := field.Type().Elem().Kind()
 	if sliceType == reflect.Uint8 {

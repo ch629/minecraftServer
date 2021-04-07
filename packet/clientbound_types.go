@@ -17,7 +17,6 @@ type (
 	}
 
 	LoginSuccess struct {
-		// TODO: Check if this UUID works
 		UUID     uuid.UUID
 		Username string
 	}
@@ -97,8 +96,7 @@ type (
 	}
 
 	Statistics struct {
-		Count int32 `pkt_type:"VarInt"`
-		// TODO: Array of structs need to be implemented
+		Count     int32       `pkt_type:"VarInt"`
 		Statistic []Statistic `pkt_len:"Count"`
 	}
 

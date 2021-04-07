@@ -3,7 +3,7 @@ package nbt
 import (
 	"bytes"
 	"github.com/rotisserie/eris"
-	"math"
+	"minecraftServer/nbt/tags"
 	"reflect"
 	"strings"
 )
@@ -44,167 +44,157 @@ func (e *encoder) Encode(i interface{}) error {
 	return e.EncodeValue(reflect.ValueOf(i))
 }
 
-// TODO: Optionals -> Should these be pointers so can be nil?
+// TODO: Optionals -> Should these be pointers so can be nil? -> reflect.Zero & Value.IsZero
 // TODO: List
+// TODO: Make types for all of these (WriteTo, ReadFrom)
 func (e *encoder) EncodeValue(v reflect.Value) (err error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
+	if _, err = tags.Compound.WriteTo(e.buf); err != nil {
+		return
+	}
+
+	rootField := v.FieldByName("Root")
+	if !rootField.IsValid() || rootField.IsZero() {
+		if err = e.writeShort(0); err != nil {
+			return
+		}
+	} else {
+		rootName := rootField.String()
+		if err = e.writeString(rootName); err != nil {
+			return
+		}
+	}
+
+	return e.EncodeInternalStruct(v)
+}
+
+func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 	typ := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
+		typeField := typ.Field(i)
 		field := v.Field(i)
-		tags := makeTags(typ.Field(i).Tag)
-		fieldName := typ.Field(i).Name
+		fieldTags := makeTags(typeField.Tag)
+		fieldName := typeField.Name
 
-		if i == 0 {
-			if err = e.writeTag(Compound); err != nil {
-				return
-			}
-			if typ.Field(i).Name == "Root" {
-				// TODO: Validate it's a string first
-				rootValue := field.String()
-				if err = e.writeString(rootValue); err != nil {
-					return
-				}
-				continue
-			} else {
-				if err = e.writeShort(0); err != nil {
-					return
-				}
+		makeNamedField := func(field Field) NamedField {
+			return NamedField{
+				Field:   field,
+				Name:    fieldName,
+				NameTag: fieldTags.Name,
 			}
 		}
 
+		if i == 0 && typeField.Name == "Root" {
+			continue
+		}
+
+		var fieldEncoder FieldEncoder
 		switch field.Kind() {
 		case reflect.Bool:
-			if err = e.writeNamedTag(Byte, tags.Name, fieldName); err != nil {
-				return
-			}
-			boolByte := byte(0x00)
-			if field.Bool() {
-				boolByte = 0x01
-			}
-			if err = e.buf.WriteByte(boolByte); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Bool(field.Bool()))
 		case reflect.Uint8:
-			if err = e.writeNamedTag(Byte, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.buf.WriteByte(uint8(field.Uint())); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Byte(field.Uint()))
 		case reflect.Int16:
-			if err = e.writeNamedTag(Short, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeShort(int16(field.Int())); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Short(field.Int()))
 		case reflect.Int32:
-			if err = e.writeNamedTag(Int, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeInt(int32(field.Int())); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Int(field.Int()))
 		case reflect.Int64:
-			if err = e.writeNamedTag(Long, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeLong(field.Int()); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Long(field.Int()))
 		case reflect.Float32:
-			if err = e.writeNamedTag(Float, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeFloat(float32(field.Float())); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Float(field.Float()))
 		case reflect.Float64:
-			if err = e.writeNamedTag(Double, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeDouble(field.Float()); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(Double(field.Float()))
 		case reflect.Slice:
 			sliceType := field.Type().Elem().Kind()
-			switch sliceType {
-			// []byte
-			case reflect.Uint8:
-				if err = e.writeNamedTag(ByteArray, tags.Name, fieldName); err != nil {
+			if fieldTags.Type == "List" {
+				if err = e.writeNamedTag(tags.List, fieldTags.Name, fieldName); err != nil {
 					return
 				}
-				bs := field.Bytes()
-				if err = e.writeInt(int32(len(bs))); err != nil {
-					return
-				}
-				if _, err = e.buf.Write(bs); err != nil {
-					return
-				}
-			// IntArray
-			case reflect.Int32:
-				if err = e.writeNamedTag(IntArray, tags.Name, fieldName); err != nil {
-					return
-				}
-				intArr := field.Interface().([]int32)
-				if err = e.writeInt(int32(len(intArr))); err != nil {
-					return
-				}
-				for _, i := range intArr {
-					if err = e.writeInt(i); err != nil {
+				switch sliceType {
+				// List
+				case reflect.Struct:
+					if err = e.writeTag(tags.Compound); err != nil {
 						return
 					}
-				}
-			// LongArray
-			case reflect.Int64:
-				if err = e.writeNamedTag(LongArray, tags.Name, fieldName); err != nil {
-					return
-				}
-				longArr := field.Interface().([]int64)
-				if err = e.writeInt(int32(len(longArr))); err != nil {
-					return
-				}
-				for _, i := range longArr {
-					if err = e.writeLong(i); err != nil {
+					if err = e.writeInt(int32(field.Len())); err != nil {
 						return
 					}
-				}
-			// Array of Compounds
-			case reflect.Struct:
-				for i := 0; i < field.NumField(); i++ {
-					if err = e.EncodeValue(field.Index(i)); err != nil {
-						return
+					for i := 0; i < field.Len(); i++ {
+						if err = e.writeTag(tags.Compound); err != nil {
+							return
+						}
+						if err = e.EncodeInternalStruct(field.Index(i)); err != nil {
+							return
+						}
 					}
 				}
-			default:
-				return eris.Errorf("unknown slice type %v", sliceType)
+			} else {
+				switch sliceType {
+				// []byte
+				case reflect.Uint8:
+					fieldEncoder = makeNamedField(ByteArray(field.Bytes()))
+				// IntArray
+				case reflect.Int32:
+					if err = e.writeNamedTag(tags.IntArray, fieldTags.Name, fieldName); err != nil {
+						return
+					}
+					intArr := field.Interface().([]int32)
+					if err = e.writeInt(int32(len(intArr))); err != nil {
+						return
+					}
+					for _, i := range intArr {
+						if err = e.writeInt(i); err != nil {
+							return
+						}
+					}
+				// LongArray
+				case reflect.Int64:
+					if err = e.writeNamedTag(tags.LongArray, fieldTags.Name, fieldName); err != nil {
+						return
+					}
+					longArr := field.Interface().([]int64)
+					if err = e.writeInt(int32(len(longArr))); err != nil {
+						return
+					}
+					for _, i := range longArr {
+						if err = e.writeLong(i); err != nil {
+							return
+						}
+					}
+				default:
+					return eris.Errorf("unknown slice type %v", sliceType)
+				}
 			}
 		case reflect.String:
-			if err = e.writeNamedTag(String, tags.Name, fieldName); err != nil {
-				return
-			}
-			if err = e.writeString(field.String()); err != nil {
-				return
-			}
+			fieldEncoder = makeNamedField(String(field.String()))
 		// Compound
 		case reflect.Struct:
+			if err = e.writeNamedTag(tags.Compound, fieldTags.Name, fieldName); err != nil {
+				return
+			}
 			if err = e.EncodeValue(field); err != nil {
 				return err
 			}
 		default:
 			return eris.Errorf("unknown type '%v'", field.Kind())
 		}
+		if fieldEncoder != nil {
+			if _, err = fieldEncoder.WriteTo(e.buf); err != nil {
+				return
+			}
+		}
 	}
-	return e.writeTag(End)
+	return e.writeTag(tags.End)
 }
 
 func makeTags(tag reflect.StructTag) nbtTags {
 	return nbtTags{
 		Name:     tag.Get("nbt"),
 		Optional: tag.Get("nbt_opt"),
+		Type:     tag.Get("nbt_type"),
 	}
 }
 
@@ -212,7 +202,7 @@ func (tags nbtTags) isOptional() bool {
 	return tags.Optional == "true"
 }
 
-func (e *encoder) writeNamedTag(tag Tag, name string, fieldName string) error {
+func (e *encoder) writeNamedTag(tag tags.Tag, name string, fieldName string) error {
 	if err := e.buf.WriteByte(byte(tag)); err != nil {
 		return err
 	}
@@ -222,8 +212,9 @@ func (e *encoder) writeNamedTag(tag Tag, name string, fieldName string) error {
 	return e.writeString(name)
 }
 
-func (e *encoder) writeTag(tag Tag) error {
-	return e.buf.WriteByte(byte(tag))
+func (e *encoder) writeTag(tag tags.Tag) error {
+	_, err := tag.WriteTo(e.buf)
+	return err
 }
 
 func (e *encoder) writeShort(s int16) error {
@@ -247,18 +238,7 @@ func (e *encoder) writeLong(l int64) error {
 	return err
 }
 
-func (e *encoder) writeFloat(f float32) error {
-	// TODO: Check if signs matter here
-	return e.writeInt(int32(math.Float32bits(f)))
-}
-
-func (e *encoder) writeDouble(d float64) error {
-	// TODO: Check if signs matter here
-	return e.writeLong(int64(math.Float64bits(d)))
-}
-
 func (e *encoder) writeString(s string) error {
-	// TODO: Docs say unsigned short
 	if err := e.writeUnsignedShort(uint16(len(s))); err != nil {
 		return err
 	}

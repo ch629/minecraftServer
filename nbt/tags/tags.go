@@ -1,4 +1,6 @@
-package nbt
+package tags
+
+import "io"
 
 type Tag byte
 
@@ -54,4 +56,20 @@ func (t Tag) String() string {
 		"TAG_Int_Array",
 		"TAG_Long_Array",
 	}[t]
+}
+
+func (t Tag) WriteTo(writer io.Writer) (int64, error) {
+	if _, err := writer.Write([]byte{byte(t)}); err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
+func (t *Tag) ReadFrom(reader io.Reader) (int64, error) {
+	bs := make([]byte, 1)
+	if _, err := reader.Read(bs); err != nil {
+		return 0, err
+	}
+	*t = Tag(bs[0])
+	return 1, nil
 }
