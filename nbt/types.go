@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"minecraftServer/nbt/tags"
+	"reflect"
 )
 
 type (
@@ -37,6 +38,42 @@ type (
 		NameTag string
 	}
 )
+
+var fieldMap = map[reflect.Kind]func(value reflect.Value) Field{
+	reflect.Bool: func(v reflect.Value) Field {
+		return Bool(v.Bool())
+	},
+	reflect.Uint8: func(v reflect.Value) Field {
+		return Byte(v.Uint())
+	},
+	reflect.Int16: func(v reflect.Value) Field {
+		return Short(v.Int())
+	},
+	reflect.Uint16: func(v reflect.Value) Field {
+		return UShort(v.Uint())
+	},
+	reflect.Int32: func(v reflect.Value) Field {
+		return Int(v.Int())
+	},
+	reflect.Uint32: func(v reflect.Value) Field {
+		return UInt(v.Uint())
+	},
+	reflect.Int64: func(v reflect.Value) Field {
+		return Long(v.Int())
+	},
+	reflect.Uint64: func(v reflect.Value) Field {
+		return ULong(v.Int())
+	},
+	reflect.Float32: func(v reflect.Value) Field {
+		return Float(v.Float())
+	},
+	reflect.Float64: func(v reflect.Value) Field {
+		return Double(v.Float())
+	},
+	reflect.String: func(v reflect.Value) Field {
+		return String(v.String())
+	},
+}
 
 func writeAll(writer io.Writer, encoders ...FieldEncoder) (count int64, err error) {
 	var nn int64

@@ -74,60 +74,71 @@ func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 	typ := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
-		typeField := typ.Field(i)
-		field := v.Field(i)
-		fieldTags := makeTags(typeField.Tag)
-		fieldName := typeField.Name
-
-		makeNamedField := func(field Field) NamedField {
-			return NamedField{
-				Field:   field,
-				Name:    fieldName,
-				NameTag: fieldTags.Name,
-			}
-		}
-
-		if i == 0 && typeField.Name == "Root" {
+		if i == 0 && typ.Field(i).Name == "Root" {
 			continue
 		}
+		if err = e.EncodeField(typ, i, v.Field(i)); err != nil {
+			return
+		}
 
-		var fieldEncoder FieldEncoder
+	}
+	return e.writeTag(tags.End)
+}
+
+func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err error) {
+	typeField := typ.Field(i)
+	fieldTags := makeTags(typeField.Tag)
+	fieldName := typeField.Name
+
+	makeNamedField := func(field Field) NamedField {
+		return NamedField{
+			Field:   field,
+			Name:    fieldName,
+			NameTag: fieldTags.Name,
+		}
+	}
+
+	var fieldEncoder FieldEncoder
+	if fieldFunc, ok := fieldMap[field.Kind()]; ok {
+		fieldEncoder = NamedField{
+			Field:   fieldFunc(field),
+			Name:    fieldName,
+			NameTag: fieldTags.Name,
+		}
+	} else {
 		switch field.Kind() {
-		case reflect.Bool:
-			fieldEncoder = makeNamedField(Bool(field.Bool()))
-		case reflect.Uint8:
-			fieldEncoder = makeNamedField(Byte(field.Uint()))
-		case reflect.Int16:
-			fieldEncoder = makeNamedField(Short(field.Int()))
-		case reflect.Int32:
-			fieldEncoder = makeNamedField(Int(field.Int()))
-		case reflect.Int64:
-			fieldEncoder = makeNamedField(Long(field.Int()))
-		case reflect.Float32:
-			fieldEncoder = makeNamedField(Float(field.Float()))
-		case reflect.Float64:
-			fieldEncoder = makeNamedField(Double(field.Float()))
 		case reflect.Slice:
 			sliceType := field.Type().Elem().Kind()
 			if fieldTags.Type == "List" {
 				if err = e.writeNamedTag(tags.List, fieldTags.Name, fieldName); err != nil {
 					return
 				}
-				switch sliceType {
-				// List
-				case reflect.Struct:
-					if err = e.writeTag(tags.Compound); err != nil {
-						return
-					}
-					if err = e.writeInt(int32(field.Len())); err != nil {
-						return
-					}
-					for i := 0; i < field.Len(); i++ {
-						if err = e.writeTag(tags.Compound); err != nil {
+				l := field.Len()
+				if _, err = writeAll(e.buf, tags.TagMap[sliceType], Int(l)); err != nil {
+					return
+				}
+
+				if fieldFunc, ok := fieldMap[sliceType]; ok {
+					for i := 0; i < l; i++ {
+						// TODO: Try to make this recursive if possible?
+						if _, err = writeAll(e.buf, fieldFunc(field.Index(i))); err != nil {
 							return
 						}
-						if err = e.EncodeInternalStruct(field.Index(i)); err != nil {
+					}
+				} else {
+					switch sliceType {
+					// Compound List
+					case reflect.Struct:
+						l := field.Len()
+						if _, err = writeAll(e.buf, tags.Compound); err != nil {
 							return
+						}
+
+						for i := 0; i < l; i++ {
+							// Compound lists just have an END tag between each
+							if err = e.EncodeInternalStruct(field.Index(i)); err != nil {
+								return
+							}
 						}
 					}
 				}
@@ -168,8 +179,6 @@ func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 					return eris.Errorf("unknown slice type %v", sliceType)
 				}
 			}
-		case reflect.String:
-			fieldEncoder = makeNamedField(String(field.String()))
 		// Compound
 		case reflect.Struct:
 			if err = e.writeNamedTag(tags.Compound, fieldTags.Name, fieldName); err != nil {
@@ -181,13 +190,13 @@ func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 		default:
 			return eris.Errorf("unknown type '%v'", field.Kind())
 		}
-		if fieldEncoder != nil {
-			if _, err = fieldEncoder.WriteTo(e.buf); err != nil {
-				return
-			}
+	}
+	if fieldEncoder != nil {
+		if _, err = fieldEncoder.WriteTo(e.buf); err != nil {
+			return
 		}
 	}
-	return e.writeTag(tags.End)
+	return
 }
 
 func makeTags(tag reflect.StructTag) nbtTags {

@@ -1,6 +1,9 @@
 package tags
 
-import "io"
+import (
+	"io"
+	"reflect"
+)
 
 type Tag byte
 
@@ -39,6 +42,21 @@ const (
 	// indicates the number of 8 byte longs.
 	LongArray
 )
+
+var TagMap = map[reflect.Kind]Tag{
+	reflect.Bool:    Byte,
+	reflect.Uint8:   Byte,
+	reflect.Int16:   Short,
+	reflect.Uint16:  Short,
+	reflect.Int32:   Int,
+	reflect.Uint32:  Int,
+	reflect.Int64:   Long,
+	reflect.Uint64:  Long,
+	reflect.Float32: Float,
+	reflect.Float64: Double,
+	reflect.String:  String,
+	//reflect.Struct: Compound,
+}
 
 func (t Tag) String() string {
 	return []string{
