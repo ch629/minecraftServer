@@ -55,7 +55,7 @@ var TagMap = map[reflect.Kind]Tag{
 	reflect.Float32: Float,
 	reflect.Float64: Double,
 	reflect.String:  String,
-	//reflect.Struct: Compound,
+	reflect.Struct:  Compound,
 }
 
 func (t Tag) String() string {

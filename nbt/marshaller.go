@@ -86,7 +86,7 @@ func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err error) {
 	typeField := typ.Field(i)
 	fieldTags := makeTags(typeField.Tag)
-	fieldName := typeField.Name
+	fieldName := strings.ToLower(typeField.Name)
 
 	makeNamedField := func(field Field) NamedField {
 		return NamedField{
@@ -127,12 +127,7 @@ func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err
 					switch sliceType {
 					// Compound List
 					case reflect.Struct:
-						l := field.Len()
-						if _, err = writeAll(e.buf, tags.Compound); err != nil {
-							return
-						}
-
-						for i := 0; i < l; i++ {
+						for i := 0; i < field.Len(); i++ {
 							// Compound lists just have an END tag between each
 							if err = e.EncodeInternalStruct(field.Index(i)); err != nil {
 								return
