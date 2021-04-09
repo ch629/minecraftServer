@@ -45,8 +45,6 @@ func (e *encoder) Encode(i interface{}) error {
 }
 
 // TODO: Optionals -> Should these be pointers so can be nil? -> reflect.Zero & Value.IsZero
-// TODO: List
-// TODO: Make types for all of these (WriteTo, ReadFrom)
 func (e *encoder) EncodeValue(v reflect.Value) (err error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -109,7 +107,7 @@ func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err
 		switch field.Kind() {
 		case reflect.Slice:
 			sliceType := field.Type().Elem().Kind()
-			if fieldTags.Type == "List" {
+			if isList(sliceType, fieldTags) {
 				if err = e.writeNamedTag(tags.List, fieldTags.Name, fieldName); err != nil {
 					return
 				}
@@ -197,6 +195,10 @@ func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err
 		}
 	}
 	return
+}
+
+func isList(kind reflect.Kind, nbtTags nbtTags) bool {
+	return strings.ToLower(nbtTags.Type) == "list" || (kind != reflect.Uint8 && kind != reflect.Int32 && kind != reflect.Int64)
 }
 
 func makeTags(tag reflect.StructTag) nbtTags {
