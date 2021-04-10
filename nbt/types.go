@@ -31,7 +31,6 @@ type (
 	}
 
 	NamedField struct {
-		// TODO: Determine tag from field itself?
 		Field Field
 		Name  string
 		// Added struct tag to overwrite name

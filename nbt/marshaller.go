@@ -44,7 +44,6 @@ func (e *encoder) Encode(i interface{}) error {
 	return e.EncodeValue(reflect.ValueOf(i))
 }
 
-// TODO: Optionals -> Should these be pointers so can be nil? -> reflect.Zero & Value.IsZero
 func (e *encoder) EncodeValue(v reflect.Value) (err error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -86,6 +85,18 @@ func (e *encoder) EncodeInternalStruct(v reflect.Value) (err error) {
 func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err error) {
 	typeField := typ.Field(i)
 	fieldTags := makeTags(typeField.Tag)
+
+	if fieldTags.isOptional() {
+		// TODO: This makes any optional field missing if it's 0 or false, will need to use pointers if this is not expected
+		if field.IsZero() {
+			return
+		}
+		if field.Kind() == reflect.Ptr {
+			// Pull out from pointer
+			field = field.Elem()
+		}
+	}
+
 	fieldName := strings.ToLower(typeField.Name)
 
 	makeNamedField := func(field Field) NamedField {
