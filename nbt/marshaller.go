@@ -20,6 +20,7 @@ type (
 	}
 )
 
+// TODO: Reader output instead?
 func MarshalToNBT(i interface{}) ([]byte, error) {
 	enc := &encoder{
 		buf: bytes.NewBuffer(nil),
@@ -153,7 +154,8 @@ func (e *encoder) EncodeField(typ reflect.Type, i int, field reflect.Value) (err
 				switch sliceType {
 				// []byte
 				case reflect.Uint8:
-					fieldEncoder = makeNamedField(ByteArray(field.Bytes()))
+					ba := ByteArray(field.Bytes())
+					fieldEncoder = makeNamedField(&ba)
 				// IntArray
 				case reflect.Int32:
 					intArr := field.Interface().([]int32)
