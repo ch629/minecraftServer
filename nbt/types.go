@@ -36,6 +36,13 @@ type (
 		// Added struct tag to overwrite name
 		NameTag string
 	}
+
+	NamedTag struct {
+		Tag  tags.Tag
+		Name string
+		// Added struct tag to overwrite name
+		NameTag string
+	}
 )
 
 var fieldMap = map[reflect.Kind]func(value reflect.Value) Field{
@@ -93,6 +100,14 @@ func (field NamedField) WriteTo(to io.Writer) (int64, error) {
 		name = field.NameTag
 	}
 	return writeAll(to, field.Field.Tag(), String(name), field.Field)
+}
+
+func (namedTag NamedTag) WriteTo(to io.Writer) (int64, error) {
+	name := namedTag.Name
+	if len(namedTag.NameTag) > 0 {
+		name = namedTag.NameTag
+	}
+	return writeAll(to, namedTag.Tag, String(name))
 }
 
 func (s Short) WriteTo(to io.Writer) (int64, error) {
@@ -169,6 +184,7 @@ func (_ Double) Tag() tags.Tag {
 }
 
 func (s String) WriteTo(to io.Writer) (byteCount int64, err error) {
+	// TODO: All strings (Tag names and TAG_String values) are length-prefixed with a normal VarInt
 	byteCount, err = UShort(len(s)).WriteTo(to)
 	if err != nil {
 		return

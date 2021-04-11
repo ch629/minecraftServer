@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMarshalToNBTCases(t *testing.T) {
+func TestMarshalToNBTTable(t *testing.T) {
 	type testCase struct {
 		Name           string
 		InputStruct    interface{}
