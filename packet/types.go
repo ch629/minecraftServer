@@ -381,7 +381,6 @@ func ByteArrayFromLenReader(l VarInt, reader io.Reader) (ByteArray, error) {
 	}
 
 	var ba ByteArray
-	// TODO: Return len too?
 	_, err = ba.ReadFrom(reader)
 	return ba, err
 }

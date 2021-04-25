@@ -2,9 +2,9 @@ package packet
 
 import (
 	"bytes"
+	"github.com/ch629/minecraftServer/nbt"
 	"github.com/google/uuid"
 	"io"
-	"minecraftServer/nbt"
 	"reflect"
 )
 

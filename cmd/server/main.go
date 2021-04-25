@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ch629/minecraftServer/packet"
 	"github.com/google/uuid"
 	"github.com/rotisserie/eris"
 	"io"
-	"minecraftServer/packet"
 	"net"
 	"os"
 	"os/signal"
@@ -136,7 +136,7 @@ func main() {
 }
 
 func IsConnectionClosedErr(err error) bool {
-	return err == io.EOF || eris.Unwrap(err) == io.EOF
+	return eris.Is(err, io.EOF)
 }
 
 func p(err error) {

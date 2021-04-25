@@ -1,9 +1,9 @@
 package nbt
 
 import (
+	"github.com/ch629/minecraftServer/nbt/tags"
 	"io"
 	"math"
-	"minecraftServer/nbt/tags"
 	"reflect"
 )
 
@@ -98,6 +98,18 @@ func writeAll(writer io.Writer, encoders ...FieldEncoder) (count int64, err erro
 		nn, err = encoder.WriteTo(writer)
 		if err != nil {
 			// TODO: Give context to err
+			return
+		}
+		count += nn
+	}
+	return
+}
+
+func readAll(reader io.Reader, decoders ...FieldDecoder) (count int64, err error) {
+	var nn int64
+	for _, decoder := range decoders {
+		nn, err = decoder.ReadFrom(reader)
+		if err != nil {
 			return
 		}
 		count += nn

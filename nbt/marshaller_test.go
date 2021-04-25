@@ -131,9 +131,11 @@ func TestMarshalToNBTTable(t *testing.T) {
 		if test.Skip {
 			continue
 		}
-		bs, err := MarshalToNBT(test.InputStruct)
-		assert.NoError(t, err, test.Name)
-		assert.Equal(t, test.ExpectedOutput, bs, test.Name)
+		t.Run(test.Name, func(t *testing.T) {
+			bs, err := MarshalToNBT(test.InputStruct)
+			assert.NoError(t, err, test.Name)
+			assert.Equal(t, test.ExpectedOutput, bs, test.Name)
+		})
 	}
 }
 

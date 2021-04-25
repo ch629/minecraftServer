@@ -11,7 +11,11 @@ type Player struct {
 	Compression     CompressionState
 }
 
+// CompressionState holds the defined compression options for a client connection
 type CompressionState struct {
-	Enabled   bool
+	// Enabled is whether compression is enabled for the client connection
+	Enabled bool
+
+	// Threshold is how many bytes each message can be before being compressed
 	Threshold uint64
 }

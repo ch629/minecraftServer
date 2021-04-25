@@ -2,8 +2,8 @@ package nbt
 
 import (
 	"bytes"
+	"github.com/ch629/minecraftServer/nbt/tags"
 	"github.com/rotisserie/eris"
-	"minecraftServer/nbt/tags"
 	"reflect"
 	"strings"
 )

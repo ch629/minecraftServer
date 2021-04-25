@@ -2,7 +2,7 @@ package player
 
 import (
 	"encoding/json"
-	"minecraftServer/packet"
+	"github.com/ch629/minecraftServer/packet"
 )
 
 type (
